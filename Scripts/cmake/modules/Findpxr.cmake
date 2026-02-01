@@ -25,7 +25,9 @@ if(USD_usdviewq_LIBRARY_RELEASE OR USD_usdviewq_LIBRARY_DEBUG)
       find_package(Python3 3.${_ver} EXACT COMPONENTS Development)
 
       set(PYTHON_INCLUDE_DIRS "${Python3_INCLUDE_DIRS}")
-      set(PYTHON_LIBRARIES ${Python3_LIBRARIES})
+      # Use the Python3::Python target instead of raw library paths to avoid
+      # "debug"/"optimized" keywords in INTERFACE_LINK_LIBRARIES
+      set(PYTHON_LIBRARIES "$<TARGET_NAME_IF_EXISTS:Python3::Python>")
 
       break()
     endif()

@@ -686,6 +686,12 @@ def InstallUSD(context, force, buildArgs):
         if Windows():
             # Increase the precompiled header buffer limit.
             extraArgs.append('-DCMAKE_CXX_FLAGS="/Zm150"')
+            
+            # Add Python libs directory to linker path to ensure python3X.lib is found
+            if pythonInfo:
+                pythonLibDir = os.path.dirname(pythonInfo[1]).replace("\\", "/")
+                extraArgs.append('-DCMAKE_EXE_LINKER_FLAGS="/LIBPATH:{}"'.format(pythonLibDir))
+                extraArgs.append('-DCMAKE_SHARED_LINKER_FLAGS="/LIBPATH:{}"'.format(pythonLibDir))
 
         # Make sure to use boost installed by the build script and not any
         # system installed boost
