@@ -211,6 +211,7 @@ float3 shadeIndirectLight(RaytracingAccelerationStructure scene,
         sampleMaterial(material, shading, V, random, L, pdf, lobeID);
     if (isBlack(bsdfAndCosine))
     {
+        alpha = 1.0f;  // Initialize out parameter before early return
         return BLACK;
     }
 
