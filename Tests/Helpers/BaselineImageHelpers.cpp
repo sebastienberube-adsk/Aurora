@@ -36,6 +36,7 @@ using namespace std;
 #pragma warning(disable : 4244) // disable simd.h warning about type conversion.
 #pragma warning(disable : 4456) // disable farmhash.h warning about hiding local declaration.
 #pragma warning(disable : 4267) // disable farmhash.h warning about type conversion.
+#pragma warning(disable : 4996) // disable xutility warning about deprecated factory functions.
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/imageio.h>

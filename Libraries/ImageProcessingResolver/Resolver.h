@@ -26,6 +26,7 @@
 #pragma warning(disable : 4267) // disable harmhash.h warning conversion from 'size_t' to 'uint32_t'
 #pragma warning(                                                                                   \
         disable : 4456) // disable harmhash.h warning declaration hides previous local declaration
+#pragma warning(disable : 4996) // disable xutility warning about deprecated factory functions.
 #include "OpenImageIO/imagebuf.h"
 #include "OpenImageIO/imagebufalgo.h"
 #include "OpenImageIO/imageio.h"
