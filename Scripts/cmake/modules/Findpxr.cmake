@@ -29,6 +29,13 @@ if(USD_usdviewq_LIBRARY_RELEASE OR USD_usdviewq_LIBRARY_DEBUG)
       # "debug"/"optimized" keywords in INTERFACE_LINK_LIBRARIES
       set(PYTHON_LIBRARIES "$<TARGET_NAME_IF_EXISTS:Python3::Python>")
 
+      # On Windows, add the Python libs directory to the linker search path
+      # to ensure python3X.lib can be found during linking
+      if(WIN32 AND Python3_LIBRARY_RELEASE)
+        get_filename_component(PYTHON_LIBRARY_DIR "${Python3_LIBRARY_RELEASE}" DIRECTORY)
+        link_directories("${PYTHON_LIBRARY_DIR}")
+      endif()
+
       break()
     endif()
   endforeach()
