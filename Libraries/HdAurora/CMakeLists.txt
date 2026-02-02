@@ -88,6 +88,12 @@ if(WIN32)
     add_dependencies(CopyUSDExecutables MakeRuntimeDir)
     add_dependencies(${PROJECT_NAME} CopyUSDExecutables)
 
+    # Ensure FixupUSDPlugInfo runs after all USD files are copied
+    if(TARGET FixupUSDPlugInfo)
+        add_dependencies(FixupUSDPlugInfo CopyUSDExecutables)
+        add_dependencies(${PROJECT_NAME} FixupUSDPlugInfo)
+    endif()
+
     if(ENABLE_USDVIEW)
         add_custom_target(CopyUSDPythonExecutables ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${USD_PYTHON_LIB_DIR} ${RUNTIME_OUTPUT_DIR}/python
