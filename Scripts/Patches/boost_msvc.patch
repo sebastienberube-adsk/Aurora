@@ -1,0 +1,23 @@
+diff --git a/tools/build/src/tools/msvc.jam b/tools/build/src/tools/msvc.jam
+--- a/tools/build/src/tools/msvc.jam
++++ b/tools/build/src/tools/msvc.jam
+@@ -1113,7 +1113,18 @@
+         }
+         else
+         {
+-            if [ MATCH "(14.3)" : $(version) ]
++            # Fix for MSVC 14.4x+ (VS2022 with newer compiler versions like 14.44.xxxxx)
++            # Boost 1.78.0 only handled up to 14.3x. The pattern (14.[4-9]) matches
++            # version strings containing "14.4", "14.5", etc. for future compatibility.
++            if [ MATCH "(14.[4-9])" : $(version) ]
++            {
++                if $(.debug-configuration)
++                {
++                    ECHO "notice: [generate-setup-cmd] $(version) is 14.4+" ;
++                }
++                parent = [ path.native [ path.join  $(parent) "..\\..\\..\\..\\..\\Auxiliary\\Build" ] ] ;
++            }
++            else if [ MATCH "(14.3)" : $(version) ]
+             {
+                 if $(.debug-configuration)
+                 {

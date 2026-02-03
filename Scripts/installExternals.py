@@ -134,6 +134,11 @@ def InstallBoost_Helper(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(BOOST_URL, context, force,
                                              dontExtract=dontExtract)):
     
+        # Apply patch to fix MSVC 14.4x+ detection in Boost 1.78.0
+        # This fixes vcvarsall.bat path detection for newer VS2022 compilers
+        if Windows():
+            ApplyGitPatch(context, "boost_msvc.patch")
+
         # Remove the install folder if it exists.
         instFolder = os.path.join(context.externalsInstDir, BOOST_INSTALL_FOLDER)
         if(os.path.isdir(instFolder)):
