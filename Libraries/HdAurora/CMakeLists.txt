@@ -75,6 +75,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE ${DEFAULT_COMPILE_DEFINITIONS
 
 if(WIN32)
     # Create a custom target that will copy USD executables to the runtime folder.
+    # The fixup command runs immediately after copy to fix plugInfo.json for Debug builds.
+    # USD's build system generates plugInfo.json with release library names even for debug builds,
+    # which causes plugin loading to fail at runtime (e.g., usd_hgiVulkan.dll vs usd_hgiVulkand.dll).
     file(GLOB USD_EXECUTABLES ${pxr_ROOT}/bin/*)
     set(USD_PYTHON_LIB_DIR "${pxr_ROOT}/lib/python")
     set(USD_LIB_PLUGIN_DIR "${pxr_ROOT}/lib/usd")
@@ -83,16 +86,14 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${USD_EXECUTABLES} ${RUNTIME_OUTPUT_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${USD_LIB_PLUGIN_DIR} ${RUNTIME_OUTPUT_DIR}/usd
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${USD_PLUGIN_DIR} ${RUNTIME_OUTPUT_DIR}/usd
+        COMMAND ${CMAKE_COMMAND}
+            -DUSD_PLUGIN_DIR=${RUNTIME_OUTPUT_DIR}/usd
+            -DBUILD_CONFIG=$<CONFIG>
+            -P ${CMAKE_SOURCE_DIR}/Scripts/cmake/FixupUSDPlugInfo.cmake
     )
     set_property(TARGET CopyUSDExecutables PROPERTY FOLDER "Deployment")
     add_dependencies(CopyUSDExecutables MakeRuntimeDir)
     add_dependencies(${PROJECT_NAME} CopyUSDExecutables)
-
-    # Ensure FixupUSDPlugInfo runs after all USD files are copied
-    if(TARGET FixupUSDPlugInfo)
-        add_dependencies(FixupUSDPlugInfo CopyUSDExecutables)
-        add_dependencies(${PROJECT_NAME} FixupUSDPlugInfo)
-    endif()
 
     if(ENABLE_USDVIEW)
         add_custom_target(CopyUSDPythonExecutables ALL

@@ -340,28 +340,22 @@ if(WIN32)
     endif()
 
     if(ENABLE_HGI_BACKEND)
-        # Copy additional HGI files of the Pixar USD to our runtime directory
+        # Copy additional HGI files of the Pixar USD to our runtime directory.
+        # The fixup command runs immediately after copy to fix plugInfo.json for Debug builds.
+        # USD's build system generates plugInfo.json with release library names even for debug builds,
+        # which causes plugin loading to fail at runtime (e.g., usd_hgiVulkan.dll vs usd_hgiVulkand.dll).
         add_custom_target(CopyUSDDLLs ALL
             COMMAND ${CMAKE_COMMAND} -E make_directory ${RUNTIME_OUTPUT_DIR}/usd/hgiVulkan/resources
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PXR_LIBRARY_DIR}/usd/plugInfo.json ${RUNTIME_OUTPUT_DIR}/usd
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PXR_LIBRARY_DIR}/usd/hgiVulkan/resources/plugInfo.json ${RUNTIME_OUTPUT_DIR}/usd/hgiVulkan/resources
-        )
-        set_property(TARGET CopyUSDDLLs PROPERTY FOLDER "Deployment")
-        add_dependencies(CopyUSDDLLs MakeRuntimeDir)
-        add_dependencies(${PROJECT_NAME} CopyUSDDLLs)
-
-        # Fix up USD plugInfo.json files for Debug builds.
-        # USD's build system generates plugInfo.json with release library names even for debug builds,
-        # which causes plugin loading to fail at runtime (e.g., usd_hgiVulkan.dll vs usd_hgiVulkand.dll).
-        # This target runs after all USD files are copied (CopyUSDDLLs here and CopyUSDExecutables in HdAurora).
-        add_custom_target(FixupUSDPlugInfo ALL
             COMMAND ${CMAKE_COMMAND}
                 -DUSD_PLUGIN_DIR=${RUNTIME_OUTPUT_DIR}/usd
                 -DBUILD_CONFIG=$<CONFIG>
                 -P ${CMAKE_SOURCE_DIR}/Scripts/cmake/FixupUSDPlugInfo.cmake
         )
-        set_property(TARGET FixupUSDPlugInfo PROPERTY FOLDER "Deployment")
-        add_dependencies(FixupUSDPlugInfo CopyUSDDLLs)
+        set_property(TARGET CopyUSDDLLs PROPERTY FOLDER "Deployment")
+        add_dependencies(CopyUSDDLLs MakeRuntimeDir)
+        add_dependencies(${PROJECT_NAME} CopyUSDDLLs)
     endif()
 
     # Create a custom target that will copy Slang DLLs to the runtime folder.
