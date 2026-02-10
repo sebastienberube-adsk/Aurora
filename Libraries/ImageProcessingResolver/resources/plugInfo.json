@@ -6,7 +6,8 @@
                     "ImageProcessingResolverPlugin": {
                         "bases": [
                             "ArResolver"
-                        ]
+                        ],
+                        "uriSchemes": ["imageProcessing"]
                     }
                 }
             },
