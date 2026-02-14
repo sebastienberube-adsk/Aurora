@@ -96,8 +96,16 @@ if(WIN32)
     add_dependencies(${PROJECT_NAME} CopyUSDExecutables)
 
     if(ENABLE_USDVIEW)
+        # Copy USD Python modules and fix debug naming issues.
+        # USD's debug builds name Python modules with a 'd' suffix (e.g., _tfd.pyd), but Python's
+        # import mechanism expects them without the suffix (e.g., _tf.pyd).
+        # The fixup command creates copies without the suffix so Python can import them.
         add_custom_target(CopyUSDPythonExecutables ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${USD_PYTHON_LIB_DIR} ${RUNTIME_OUTPUT_DIR}/python
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${USD_PYTHON_LIB_DIR} ${RUNTIME_OUTPUT_DIR}/python
+            COMMAND ${CMAKE_COMMAND}
+                -DUSD_PYTHON_DIR=${RUNTIME_OUTPUT_DIR}/python
+                -DBUILD_CONFIG=$<CONFIG>
+                -P ${CMAKE_SOURCE_DIR}/Scripts/cmake/FixupUSDPythonModules.cmake
         )
         set_property(TARGET CopyUSDPythonExecutables PROPERTY FOLDER "Deployment")
         add_dependencies(CopyUSDPythonExecutables MakeRuntimeDir)
