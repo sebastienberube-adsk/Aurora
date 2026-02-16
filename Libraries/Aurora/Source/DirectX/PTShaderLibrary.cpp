@@ -35,6 +35,22 @@
 #endif
 
 BEGIN_AURORA
+
+// Post-process transpiled HLSL to fix vector ternary operators that DXC rejects.
+// Slang v0.24.35 generates HLSL like: `x == (float3)0.0 ? float3(1,0,0) : x * 2.0 - 1.0`
+// DXC (SM 6.x) requires scalar conditions for `?:` and `select()` for vector conditionals.
+// This function replaces vector ternary patterns with `select()` calls.
+static string fixVectorTernary(const string& hlsl)
+{
+    // Match patterns like: IDENT == (floatN)VALUE ? TRUE_EXPR : FALSE_EXPR ;
+    // Group 1: vector comparison condition (e.g. "value_0 == (float3)0.0")
+    // Group 2: true expression (e.g. "float3(0.0, 0.0, 1.0)")
+    // Group 3: false expression (e.g. "value_0 * 2.0 - 1.0")
+    static const regex vectorTernaryPattern(
+        R"((\w+\s*[!=]=\s*\(float[234]\)\s*[\d.]+)\s*\?\s*((?:float[234]\([^)]*\)|[^:;])+?)\s*:\s*([^;]+))");
+    return regex_replace(hlsl, vectorTernaryPattern, "select($1, $2, $3)");
+}
+
 // Input to thread used to compile shaders.
 struct CompileJob
 {
@@ -833,6 +849,10 @@ void PTShaderLibrary::rebuild()
             transpiledHLSL = regex_replace(
                 transpiledHLSL, regex("\n" + entryPointCode), "\n" + entryPointCodeWithTag);
         }
+
+        // Fix vector ternary operators in the transpiled HLSL that DXC rejects.
+        // Slang v0.24.35 generates `vec_cond ? true : false` but DXC requires `select()`.
+        transpiledHLSL = fixVectorTernary(transpiledHLSL);
 
         // If development flag set dump transpiled library to a file.
         if (AU_DEV_DUMP_TRANSPILED_CODE)
