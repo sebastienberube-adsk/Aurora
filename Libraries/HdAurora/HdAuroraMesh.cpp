@@ -109,13 +109,19 @@ void HdAuroraMesh::RebuildAuroraInstances(HdSceneDelegate* delegate)
     _pVertexData           = make_unique<HdAuroraMeshVertexData>();
     _pVertexData->points   = delegate->Get(id, HdTokens->points).Get<VtVec3fArray>();
     _pVertexData->normals  = delegate->Get(id, HdTokens->normals).Get<VtVec3fArray>();
-    _pVertexData->tangents = delegate->Get(id, pxr::TfToken("tangents")).Get<VtVec3fArray>();
-    _pVertexData->uvs      = delegate->Get(id, pxr::TfToken("map1")).Get<VtVec2fArray>();
+
+    if (auto&& tangentValue = delegate->Get(id, pxr::TfToken("tangents")); !tangentValue.IsEmpty())
+        _pVertexData->tangents = tangentValue.UncheckedGet<VtVec3fArray>();
+    if (auto&& uvValue = delegate->Get(id, pxr::TfToken("map1")); !uvValue.IsEmpty())
+        _pVertexData->uvs = uvValue.UncheckedGet<VtVec2fArray>();
 
     // Attempt to get UVs using "st" token if "map1" fails.  Both can be used in different
     // circumstances.
     if (_pVertexData->uvs.size() == 0)
-        _pVertexData->uvs = delegate->Get(id, pxr::TfToken("st")).Get<VtVec2fArray>();
+    {
+        if (auto&& stValue = delegate->Get(id, pxr::TfToken("st")); !stValue.IsEmpty())
+            _pVertexData->uvs = stValue.UncheckedGet<VtVec2fArray>();
+    }
 
     // Sample code for extracting extra uv set
     // The name for the base uv set is st, other uv sets (st0, st1, etc.)
