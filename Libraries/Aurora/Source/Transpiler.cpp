@@ -136,6 +136,23 @@ struct AuroraSlangFileSystem : public ISlangFileSystem
         _fileBlobs[name] = make_unique<StringSlangBlob>(code);
     }
 
+    // Get source code by name (for debugging/logging).
+    string getSource(const string& name) const
+    {
+        auto blobIter = _fileBlobs.find(name);
+        if (blobIter != _fileBlobs.end())
+        {
+            return string((const char*)blobIter->second->getBufferPointer(), 
+                         blobIter->second->getBufferSize());
+        }
+        auto textIter = _fileText.find(name);
+        if (textIter != _fileText.end())
+        {
+            return textIter->second;
+        }
+        return "";
+    }
+
     // Map of string blobs.
     map<string, unique_ptr<StringSlangBlob>> _fileBlobs;
 
@@ -151,7 +168,8 @@ Transpiler::Transpiler(const std::map<std::string, const std::string&>& fileText
 
 Transpiler::~Transpiler()
 {
-    _pSession->release();
+    // Use C API to destroy session (avoids vtable mismatch with virtual release()).
+    spDestroySession(_pSession);
 }
 
 void Transpiler::setSource(const string& name, const string& code)
@@ -184,53 +202,146 @@ bool Transpiler::transpile(
     errorOut.clear();
     codeOut.clear();
 
-    // Create a Slang compile request for transpilation.
-    slang::ICompileRequest* pRequest;
-    [[maybe_unused]] const int reqIndex = _pSession->createCompileRequest(&pRequest);
-
-    // Set the file system and compile fiags.
-    pRequest->setFileSystem(_pFileSystem.get());
-    pRequest->setCompileFlags(SLANG_COMPILE_FLAG_NO_MANGLING);
-
-    // Create code gen target (with GLSL or HLSL language as required).
-    const int targetIndex =
-        pRequest->addCodeGenTarget(target == Language::GLSL ? SLANG_GLSL : SLANG_HLSL);
-
-    // Set target flags to generate whole program.
-    pRequest->setTargetFlags(targetIndex, SLANG_TARGET_FLAG_GENERATE_WHOLE_PROGRAM);
-    // TODO: The buffer layout might be an issue, need to work out correct flags.
-    // pRequest->setTargetForceGLSLScalarBufferLayout(targetIndex, true);
-
-    // At add translation unit from Slang to target language.
-    const int translationUnitIndex =
-        pRequest->addTranslationUnit(SLANG_SOURCE_LANGUAGE_SLANG, nullptr);
-
-    // Use standard line directives (with filename)
-    pRequest->setTargetLineDirectiveMode(targetIndex, SLANG_LINE_DIRECTIVE_MODE_STANDARD);
-    // Use column major matrix format.
-    pRequest->setTargetMatrixLayoutMode(targetIndex, SLANG_MATRIX_LAYOUT_COLUMN_MAJOR);
-
-    // Set shader name as source file name (file system will look up it up from file text map).
-    pRequest->addTranslationUnitSourceFile(translationUnitIndex, shaderName.c_str());
-
-    // Set DIRECTX preprocessor directive.
-    pRequest->addPreprocessorDefine("DIRECTX", target == Language::GLSL ? "0" : "1");
-
-    // Transpile the file.
-    const SlangResult compileRes = pRequest->compile();
-    if (compileRes != SLANG_OK)
+    // Validate session pointer.
+    if (!_pSession)
     {
-        errorOut = pRequest->getDiagnosticOutput();
+        errorOut = "Slang session is null";
+        AU_ERROR("Transpiler::transpile(%s) - _pSession is null!", shaderName.c_str());
         return false;
     }
 
-    // Get blob for result.
-    ISlangBlob* pOutBlob = nullptr;
-    pRequest->getTargetCodeBlob(targetIndex, &pOutBlob);
-    codeOut = (const char*)pOutBlob->getBufferPointer();
+    // NOTE: ALL Slang calls use C API wrappers (sp* functions) instead of C++ virtual methods.
+    // The slang.h header and slang.dll have a vtable mismatch, causing virtual calls to dispatch
+    // to wrong functions. The C API functions are direct DLL exports and are not affected.
 
-    // Release request.
-    pRequest->release();
+    // Create a Slang compile request using C API.
+    SlangCompileRequest* pRequest = spCreateCompileRequest(_pSession);
+    if (!pRequest)
+    {
+        errorOut = "Failed to create Slang compile request";
+        AU_ERROR("Transpiler::transpile(%s) - spCreateCompileRequest returned null!", 
+                 shaderName.c_str());
+        return false;
+    }
+
+    AU_INFO("Transpiler::transpile(%s) - pRequest=%p", shaderName.c_str(), (void*)pRequest);
+
+    // Set the file system and compile flags via C API.
+    spSetFileSystem(pRequest, _pFileSystem.get());
+    spSetCompileFlags(pRequest, SLANG_COMPILE_FLAG_NO_MANGLING);
+
+    // Create code gen target (with GLSL or HLSL language as required).
+    const int targetIndex =
+        spAddCodeGenTarget(pRequest, target == Language::GLSL ? SLANG_GLSL : SLANG_HLSL);
+
+    if (targetIndex < 0)
+    {
+        errorOut = "Failed to add code gen target";
+        AU_ERROR("Transpiler::transpile(%s) - spAddCodeGenTarget returned %d", 
+                 shaderName.c_str(), targetIndex);
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+
+    // Set target flags to generate whole program.
+    spSetTargetFlags(pRequest, targetIndex, SLANG_TARGET_FLAG_GENERATE_WHOLE_PROGRAM);
+
+    // Add translation unit from Slang to target language.
+    const int translationUnitIndex =
+        spAddTranslationUnit(pRequest, SLANG_SOURCE_LANGUAGE_SLANG, nullptr);
+
+    if (translationUnitIndex < 0)
+    {
+        errorOut = "Failed to add translation unit";
+        AU_ERROR("Transpiler::transpile(%s) - spAddTranslationUnit returned %d", 
+                 shaderName.c_str(), translationUnitIndex);
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+
+    AU_INFO("Transpiler::transpile(%s) - targetIndex=%d, translationUnitIndex=%d", 
+            shaderName.c_str(), targetIndex, translationUnitIndex);
+
+    // Use standard line directives (with filename).
+    spSetTargetLineDirectiveMode(pRequest, targetIndex, SLANG_LINE_DIRECTIVE_MODE_STANDARD);
+    // Use column major matrix format.
+    spSetMatrixLayoutMode(pRequest, SLANG_MATRIX_LAYOUT_COLUMN_MAJOR);
+
+    // Set shader name as source file name (file system will look up it up from file text map).
+    spAddTranslationUnitSourceFile(pRequest, translationUnitIndex, shaderName.c_str());
+
+    // Set DIRECTX preprocessor directive.
+    spAddPreprocessorDefine(pRequest, "DIRECTX", target == Language::GLSL ? "0" : "1");
+
+    // Log the shader being compiled for debugging.
+    AU_INFO("Transpiling shader: %s (target: %s)", shaderName.c_str(), 
+            target == Language::GLSL ? "GLSL" : "HLSL");
+
+    // Transpile the file with exception handling.
+    SlangResult compileRes = SLANG_FAIL;
+    try 
+    {
+        AU_INFO("Calling spCompile() for %s...", shaderName.c_str());
+        compileRes = spCompile(pRequest);
+        AU_INFO("spCompile() returned: 0x%08X (%s)", (unsigned int)compileRes,
+                SLANG_SUCCEEDED(compileRes) ? "OK" : "FAILED");
+    }
+    catch (const std::exception& e)
+    {
+        AU_ERROR("Exception during Slang compilation of %s: %s", shaderName.c_str(), e.what());
+        errorOut = std::string("Exception: ") + e.what();
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+    catch (...)
+    {
+        AU_ERROR("Unknown exception during Slang compilation of %s", shaderName.c_str());
+        errorOut = "Unknown exception during compilation";
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+
+    if (SLANG_FAILED(compileRes))
+    {
+        const char* diagnostics = spGetDiagnosticOutput(pRequest);
+        errorOut = (diagnostics && diagnostics[0]) ? diagnostics : "(no diagnostics available)";
+        AU_ERROR("Slang compilation failed for %s (result=0x%08X):\n%s", 
+                 shaderName.c_str(), (unsigned int)compileRes, errorOut.c_str());
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+
+    // Get blob for result via C API.
+    ISlangBlob* pOutBlob = nullptr;
+    AU_INFO("Getting target code blob for %s...", shaderName.c_str());
+    SlangResult blobRes = spGetTargetCodeBlob(pRequest, targetIndex, &pOutBlob);
+    
+    // Check if blob is valid.
+    if (SLANG_FAILED(blobRes) || pOutBlob == nullptr)
+    {
+        const char* diagnostics = spGetDiagnosticOutput(pRequest);
+        errorOut = (diagnostics && diagnostics[0]) ? diagnostics : "(no diagnostics available)";
+        AU_ERROR("Failed to get target code blob for %s (result=0x%08X).\nDiagnostics:\n%s", 
+                 shaderName.c_str(), (unsigned int)blobRes, errorOut.c_str());
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+
+    AU_INFO("Target code blob retrieved successfully, size: %zu bytes", pOutBlob->getBufferSize());
+    
+    // Get the buffer pointer (now safe since we checked for null).
+    const char* pBuffer = (const char*)pOutBlob->getBufferPointer();
+    if (pBuffer == nullptr)
+    {
+        AU_ERROR("Target code blob buffer pointer is null for %s", shaderName.c_str());
+        spDestroyCompileRequest(pRequest);
+        return false;
+    }
+    
+    codeOut = pBuffer;
+
+    // Destroy request via C API.
+    spDestroyCompileRequest(pRequest);
 
     return true;
 }
