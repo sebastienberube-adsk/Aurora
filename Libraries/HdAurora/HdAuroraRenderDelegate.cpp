@@ -83,10 +83,14 @@ HdAuroraRenderDelegate::HdAuroraRenderDelegate(HdRenderSettingsMap const& settin
     _sampleCounter(33, 250, 50),
     _hgi(nullptr)
 {
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate constructor started");
+    AU_INFO("[HdAurora] Creating Aurora renderer...");
+
     if (!_auroraRenderer)
     {
         TF_FATAL_ERROR("HdAurora fails to create renderer!");
     }
+    AU_INFO("[HdAurora] Aurora renderer created successfully");
     // TODO: For long-term, we need an API to set material unit information from client
     // side.
     // Background: "1 ASM unit = 1 cm" in Inventor! Unit section of ASM tutorial mentions
@@ -116,10 +120,13 @@ HdAuroraRenderDelegate::HdAuroraRenderDelegate(HdRenderSettingsMap const& settin
     _sampleCounter.reset();
 
     // create a new scene for this renderer.
+    AU_INFO("[HdAurora] Creating Aurora scene...");
     _auroraScene = _auroraRenderer->createScene();
     _pImageCache = std::make_unique<HdAuroraImageCache>(_auroraScene);
+    AU_INFO("[HdAurora] Aurora scene created");
 
     // Create a ground plane object, which is assigned to the scene.
+    AU_INFO("[HdAurora] Creating ground plane...");
     _pGroundPlane = make_unique<GroundPlane>(_auroraRenderer.get(), _auroraScene.get());
 
     // add the scene to the renderer.
@@ -133,6 +140,7 @@ HdAuroraRenderDelegate::HdAuroraRenderDelegate(HdRenderSettingsMap const& settin
 
     // Set the scene's environment.
     _auroraScene->setEnvironment(_auroraEnvironmentPath);
+    AU_INFO("[HdAurora] Environment configured");
 
     // Set up the setting functions, that are called when render settings change.
     _settingFunctions[HdAuroraTokens::kTraceDepth] = [this](VtValue const& value) {
@@ -219,6 +227,8 @@ HdAuroraRenderDelegate::HdAuroraRenderDelegate(HdRenderSettingsMap const& settin
         }
         return true;
     };
+
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate initialization complete");
 }
 
 void HdAuroraRenderDelegate::SetDrivers(HdDriverVector const& drivers)
@@ -252,11 +262,13 @@ void HdAuroraRenderDelegate::SetDrivers(HdDriverVector const& drivers)
 
 HdAuroraRenderDelegate::~HdAuroraRenderDelegate()
 {
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate destructor called");
     std::lock_guard<std::mutex> guard(mutexResourceRegistry);
     if (counterResourceRegistry-- == 1)
     {
         resourceRegistry.reset();
     }
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate destroyed");
 }
 
 HdResourceRegistrySharedPtr HdAuroraRenderDelegate::GetResourceRegistry() const

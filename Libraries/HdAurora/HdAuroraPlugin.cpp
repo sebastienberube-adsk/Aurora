@@ -60,7 +60,10 @@ HdRenderDelegate* HdAuroraRendererPlugin::CreateRenderDelegate()
 {
     setLogFunction();
 
-    return new HdAuroraRenderDelegate();
+    AU_INFO("[HdAurora] CreateRenderDelegate() called (no settings)");
+    HdAuroraRenderDelegate* delegate = new HdAuroraRenderDelegate();
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate created successfully");
+    return delegate;
 }
 
 HdRenderDelegate* HdAuroraRendererPlugin::CreateRenderDelegate(
@@ -68,15 +71,21 @@ HdRenderDelegate* HdAuroraRendererPlugin::CreateRenderDelegate(
 {
     setLogFunction();
 
-    return new HdAuroraRenderDelegate(settingsMap);
+    AU_INFO("[HdAurora] CreateRenderDelegate() called with %zu settings", settingsMap.size());
+    HdAuroraRenderDelegate* delegate = new HdAuroraRenderDelegate(settingsMap);
+    AU_INFO("[HdAurora] HdAuroraRenderDelegate created successfully");
+    return delegate;
 }
 
 void HdAuroraRendererPlugin::DeleteRenderDelegate(HdRenderDelegate* renderDelegate)
 {
+    AU_INFO("[HdAurora] DeleteRenderDelegate() called");
     delete renderDelegate;
+    AU_INFO("[HdAurora] RenderDelegate deleted");
 }
 
 bool HdAuroraRendererPlugin::IsSupported() const
 {
+    AU_INFO("[HdAurora] IsSupported() called - returning true");
     return true;
 }

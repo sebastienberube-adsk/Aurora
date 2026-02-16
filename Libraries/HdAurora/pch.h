@@ -82,6 +82,7 @@ using namespace std;
 
 // Aurora.
 #include <Aurora/Aurora.h>
+#include <Aurora/Foundation/Log.h>
 #include <Aurora/Foundation/Timer.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE

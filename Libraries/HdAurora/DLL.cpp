@@ -27,12 +27,16 @@ BOOL APIENTRY DllMain(HMODULE /*hModule*/, DWORD ul_reason_for_call, LPVOID /*lp
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+        Aurora::Foundation::Log::writeToConsole("[HdAurora] DLL loaded (DLL_PROCESS_ATTACH)");
         HdRendererPluginRegistry::Define<HdAuroraRendererPlugin>(); // register HdAurora plugin with
                                                                     // USD
+        Aurora::Foundation::Log::writeToConsole(
+            "[HdAurora] HdAuroraRendererPlugin registered with USD");
         break;
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:
+        Aurora::Foundation::Log::writeToConsole("[HdAurora] DLL unloading (DLL_PROCESS_DETACH)");
         break;
     }
     return TRUE;
@@ -43,10 +47,16 @@ extern "C"
     __attribute__((constructor)) static void Initializer(
         int /*argc*/, char** /*argv*/, char** /*envp*/)
     {
+        Aurora::Foundation::Log::writeToConsole("[HdAurora] Library loaded (constructor)");
         HdRendererPluginRegistry::Define<HdAuroraRendererPlugin>(); // register HdAurora plugin with
                                                                     // USD
+        Aurora::Foundation::Log::writeToConsole(
+            "[HdAurora] HdAuroraRendererPlugin registered with USD");
     }
 
-    __attribute__((destructor)) static void Finalizer() {}
+    __attribute__((destructor)) static void Finalizer()
+    {
+        Aurora::Foundation::Log::writeToConsole("[HdAurora] Library unloading (destructor)");
+    }
 }
 #endif
