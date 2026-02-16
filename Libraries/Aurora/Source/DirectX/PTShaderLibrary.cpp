@@ -26,7 +26,9 @@
 #include "Transpiler.h"
 
 // Development flag to enable/disable multithreaded compilation.
-#define AU_DEV_MULTITHREAD_COMPILATION 1
+// NOTE: Disabled due to thread-safety issue in slang.dll - concurrent Slang sessions
+// cause access violation (writing to 0x0) in setTargetMatrixLayoutMode.
+#define AU_DEV_MULTITHREAD_COMPILATION 0
 
 #if AU_DEV_MULTITHREAD_COMPILATION
 #include <execution>
