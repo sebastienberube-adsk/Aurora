@@ -63,7 +63,10 @@ HdAovDescriptor HdAuroraRenderDelegate::GetDefaultAovDescriptor(TfToken const& n
 {
     if (name == HdAovTokens->color)
     {
-        return HdAovDescriptor(HdFormatFloat16Vec4, false, VtValue(GfVec4f(0.0f)));
+        // HGI backend produces UNorm8Vec4 (4 bytes/pixel). The format here must match what
+        // HGIRenderBuffer actually creates, otherwise HdxAovInputTask will read past the
+        // mapped buffer when uploading to an HgiGL texture, causing an access violation.
+        return HdAovDescriptor(HdFormatUNorm8Vec4, false, VtValue(GfVec4f(0.0f)));
     }
     else if (name == HdAovTokens->depth)
     {

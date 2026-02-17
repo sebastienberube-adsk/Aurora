@@ -404,13 +404,22 @@ void HdAuroraRenderBuffer::Resolve()
         }
     }
 
-    // If we don't have a shareable buffer then fallback to using HGI blit
+    // If we don't have a shareable buffer then fallback to using HGI blit.
+    // First try asReadable(), then fall back to data() for backends (like HGI) that
+    // don't implement asReadable but can still provide pixel data via GPU-to-CPU copy.
     size_t stride;
     auto pixelBuffer = _pRenderBuffer->asReadable(stride);
-    if (!pixelBuffer)
-        return;
 
-    const void* pixelData = pixelBuffer->data();
+    const void* pixelData = nullptr;
+    if (pixelBuffer)
+    {
+        pixelData = pixelBuffer->data();
+    }
+    else
+    {
+        pixelData = _pRenderBuffer->data(stride, true);
+    }
+
     if (!pixelData)
         return;
 

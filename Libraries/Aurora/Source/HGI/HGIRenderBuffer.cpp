@@ -22,17 +22,53 @@ using namespace pxr;
 
 BEGIN_AURORA
 
-HGIRenderBuffer::HGIRenderBuffer(
-    HGIRenderer* pRenderer, uint32_t width, uint32_t height, ImageFormat /*format*/) :
-    _pRenderer(pRenderer), _width(width), _height(height)
+pxr::HgiFormat HGIRenderBuffer::toHgiFormat(ImageFormat format)
 {
-    // All render buffers are RGBA8 unorm.
-    HgiFormat hgiFormat = HgiFormat::HgiFormatUNorm8Vec4;
+    switch (format)
+    {
+    case ImageFormat::Integer_RGBA:
+        return HgiFormat::HgiFormatUNorm8Vec4;
+    case ImageFormat::Half_RGBA:
+        return HgiFormat::HgiFormatFloat16Vec4;
+    case ImageFormat::Float_RGBA:
+        return HgiFormat::HgiFormatFloat32Vec4;
+    case ImageFormat::Float_R:
+        return HgiFormat::HgiFormatFloat32;
+    default:
+        // Default to UNorm8Vec4 for unsupported formats.
+        return HgiFormat::HgiFormatUNorm8Vec4;
+    }
+}
 
+size_t HGIRenderBuffer::pixelByteSize(pxr::HgiFormat format)
+{
+    switch (format)
+    {
+    case HgiFormat::HgiFormatUNorm8Vec4:
+        return 4;
+    case HgiFormat::HgiFormatFloat16Vec4:
+        return 8;
+    case HgiFormat::HgiFormatFloat32Vec4:
+        return 16;
+    case HgiFormat::HgiFormatFloat32:
+        return 4;
+    default:
+        return 4;
+    }
+}
+
+HGIRenderBuffer::HGIRenderBuffer(
+    HGIRenderer* pRenderer, uint32_t width, uint32_t height, ImageFormat format) :
+    _pRenderer(pRenderer),
+    _width(width),
+    _height(height),
+    _hgiFormat(toHgiFormat(format)),
+    _pixelByteSize(pixelByteSize(_hgiFormat))
+{
     // Create descriptor for render buffer storage texture.
     HgiTextureDesc rtStorageTexDesc;
     rtStorageTexDesc.debugName  = "RT Storage Texture";
-    rtStorageTexDesc.format     = hgiFormat;
+    rtStorageTexDesc.format     = _hgiFormat;
     rtStorageTexDesc.dimensions = GfVec3i(width, height, 1);
     rtStorageTexDesc.layerCount = 1;
     rtStorageTexDesc.mipLevels  = 1;
@@ -48,11 +84,10 @@ void HGIRenderBuffer::resize(uint32_t /*width*/, uint32_t /*height*/) {}
 const void* HGIRenderBuffer::data(size_t& stride, bool /*removePadding*/)
 {
     // Stride is always just width*pixel-size.  No row padding.
-    size_t pixelSizeBytes = 4;
-    stride                = _width * pixelSizeBytes;
+    stride = _width * _pixelByteSize;
 
     // Ensure CPU buffer is big enough for pixels.
-    size_t dataByteSize = _width * _height * 4;
+    size_t dataByteSize = stride * _height;
     _mappedBuffer.resize(dataByteSize);
 
     // Setup commands to blit storage buffer contents to CPU buffer.

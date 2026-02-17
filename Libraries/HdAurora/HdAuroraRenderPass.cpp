@@ -108,10 +108,11 @@ void HdAuroraRenderPass::_Execute(
         {
             if (aovBindings[i].aovName == HdAovTokens->color)
             {
-                // Color buffers are requested as 32bit float buffers when using AOVs
+                // Use the format from the AOV descriptor so it matches what the
+                // renderer backend actually produces.
                 _renderBuffers[HdAovTokens->color] =
                     static_cast<HdAuroraRenderBuffer*>(aovBindings[i].renderBuffer);
-                format = HdFormatFloat16Vec4;
+                format = _owner->GetDefaultAovDescriptor(HdAovTokens->color).format;
             }
             else if (aovBindings[i].aovName == HdAovTokens->depth)
             {

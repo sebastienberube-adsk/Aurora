@@ -43,10 +43,15 @@ public:
     uint32_t height() { return _height; }
 
 private:
+    static pxr::HgiFormat toHgiFormat(ImageFormat format);
+    static size_t pixelByteSize(pxr::HgiFormat format);
+
     HgiTextureHandleWrapper::Pointer _storageTex;
     HGIRenderer* _pRenderer;
     uint32_t _width;
     uint32_t _height;
+    pxr::HgiFormat _hgiFormat;
+    size_t _pixelByteSize;
     std::vector<uint8_t> _mappedBuffer;
 };
 
