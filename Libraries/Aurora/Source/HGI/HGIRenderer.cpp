@@ -320,14 +320,14 @@ IMaterialPtr HGIRenderer::createMaterialPointer(
 {
     if (materialType.compare(Names::MaterialTypes::kBuiltIn) != 0)
     {
-        // Print error and return null material type if material type not found.
-        // TODO: Proper error handling for this case.
-        AU_ERROR(
-            "Unrecognized material type %s for material %s", materialType.c_str(), name.c_str());
-        return nullptr;
+        // HGI backend does not support MaterialX or other non-builtin material types yet.
+        // Fall back to the default material so the scene still renders.
+        AU_WARN("Material type %s for material %s is not supported by HGI backend, "
+                "falling back to default material.",
+            materialType.c_str(), name.c_str());
     }
 
-    // Create and return a new material object.
+    // Create and return a new material object (always uses default shader for HGI).
     return make_shared<HGIMaterial>(this, _pDefaultMaterialShader, _pDefaultMaterialDefinition);
 }
 

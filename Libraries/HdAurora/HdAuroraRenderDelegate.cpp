@@ -79,12 +79,12 @@ static HdResourceRegistrySharedPtr resourceRegistry;
 
 HdAuroraRenderDelegate::HdAuroraRenderDelegate(HdRenderSettingsMap const& settings) :
     HdRenderDelegate(settings),
-    _auroraRenderer(Aurora::createRenderer()),
+    _auroraRenderer(Aurora::createRenderer(Aurora::IRenderer::Backend::HGI)),
     _sampleCounter(33, 250, 50),
     _hgi(nullptr)
 {
     AU_INFO("[HdAurora] HdAuroraRenderDelegate constructor started");
-    AU_INFO("[HdAurora] Creating Aurora renderer...");
+    AU_INFO("[HdAurora] Creating Aurora HGI/Vulkan renderer...");
 
     if (!_auroraRenderer)
     {
