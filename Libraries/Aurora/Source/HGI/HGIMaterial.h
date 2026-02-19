@@ -35,7 +35,6 @@ public:
     pxr::HgiBufferHandle ubo() { return _ubo->handle(); }
 
 private:
-    void updateGPUStruct(MaterialData& data);
     HGIRenderer* _pRenderer;
     HgiBufferHandleWrapper::Pointer _ubo;
 };
